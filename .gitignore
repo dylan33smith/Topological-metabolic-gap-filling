@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Codex helper files
+docs/
+
+testing.ipynb
+
+# Project outputs
+data/raw/*
+!data/raw/README.md
+data/processed/*
+!data/processed/README.md
+results/*
+!results/README.md
+figures/*
+!figures/README.md
+
+# Local notebooks and reports
+.ipynb_checkpoints/
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.pdf
+report/*.synctex.gz
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

@@ -1,0 +1,76 @@
+\documentclass[aps,pre,reprint,superscriptaddress]{revtex4-2}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Topological Link Prediction for Metabolic Gap-Filling}
+
+\author{Dylan Smith}
+\affiliation{Indiana University Bloomington}
+\date{\today}
+
+\begin{abstract}
+Genome-scale metabolic models are powerful tools for metabolic engineering, but they remain
+incomplete because many enzymatic functions are missing or poorly annotated. This project evaluates
+whether graph topology can recover hidden metabolic relationships in the \textit{Escherichia coli}
+K-12 iJO1366 model. We represent the model as a bipartite metabolite-reaction graph, hide known
+metabolite-reaction edges, and compare Node2Vec link prediction against simpler topology-based
+baselines. The results are used to assess whether network structure provides useful gap-filling
+signal independent of sequence homology.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+Genome-scale metabolic models encode the reactions, metabolites, and gene associations known for an
+organism. Even curated models such as iJO1366 remain incomplete, which limits simulation accuracy
+and creates uncertainty in downstream metabolic engineering work. This project asks whether network
+topology can provide an independent signal for identifying missing metabolic structure.
+
+\section{Data}
+
+The primary data source is the iJO1366 reconstruction of \textit{E. coli} K-12 MG1655 from BiGG
+Models. The model contains reactions, metabolites, stoichiometric coefficients, reversibility, and
+gene-protein-reaction rules. Optional validation data include RefSeq NC\_000913.3 and enzyme
+annotations from KEGG or BioCyc/EcoCyc.
+
+\section{Methods}
+
+We convert iJO1366 into a bipartite graph with metabolite nodes and reaction nodes. An edge connects
+a metabolite to a reaction when the metabolite participates in that reaction. The main benchmark
+hides a fraction of known metabolite-reaction edges while keeping all evaluated nodes present in the
+training graph.
+
+Baseline scores are computed using simple NetworkX-derived topology features. Node2Vec embeddings
+are trained on the training graph, and candidate metabolite-reaction pairs are scored using a
+supervised classifier trained on positive and negative examples.
+
+\section{Results}
+
+This section will report graph summary statistics, degree distributions, precision-recall curves,
+AUPRC, precision at selected ranks, and top-ranked candidate predictions.
+
+\section{Discussion}
+
+The discussion will interpret whether topology-based link prediction performs better than random and
+degree-based baselines, where it succeeds, where it fails, and what the results imply for metabolic
+gap-filling.
+
+\section{Limitations}
+
+Important limitations include the use of simulated missingness, possible bias from high-degree
+currency metabolites, and the difference between predicting graph structure and proving biochemical
+activity.
+
+\section{Code Availability}
+
+Code and reproducible scripts are available at: \url{https://github.com/dylan33smith/TODO}
+
+\bibliography{references}
+
+\end{document}

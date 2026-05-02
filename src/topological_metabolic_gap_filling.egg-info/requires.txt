@@ -1,0 +1,15 @@
+cobra>=0.29
+networkx>=3.2
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+matplotlib>=3.8
+seaborn>=0.13
+node2vec>=0.5
+biopython>=1.83
+requests>=2.31
+tqdm>=4.66
+
+[dev]
+pytest>=8.0
+ruff>=0.4

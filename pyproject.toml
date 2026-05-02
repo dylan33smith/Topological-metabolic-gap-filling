@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "topological-metabolic-gap-filling"
+version = "0.1.0"
+description = "NetworkX and Node2Vec analysis for metabolic gap-filling in iJO1366."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cobra>=0.29",
+    "networkx>=3.2",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scikit-learn>=1.4",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "node2vec>=0.5",
+    "biopython>=1.83",
+    "requests>=2.31",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
