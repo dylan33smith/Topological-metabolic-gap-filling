@@ -1,76 +1,140 @@
-\documentclass[aps,pre,reprint,superscriptaddress]{revtex4-2}
+\documentclass[reprint,preprintnumbers,amsmath,amssymb,aps,nofootinbib,showkeys]{revtex4-2}
 
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{booktabs}
-\usepackage{hyperref}
+\usepackage[utf8]{inputenc}  % UTF-8 enabled
+\usepackage{graphicx}  % Include figure files
+\usepackage{xcolor}  % Allow for a color text
+\usepackage{amsmath}  % math fonts
+\usepackage{amsfonts}  % math fonts
+\usepackage{latexsym}  % math fonts
+\usepackage{amssymb}  % math fonts
+\usepackage{bm}  % bold math fonts
+\usepackage{hyperref}  % add hypertext capabilities
+\usepackage{lipsum}  % dummy text
+\usepackage{setspace}
 
 \begin{document}
 
-\title{Topological Link Prediction for Metabolic Gap-Filling}
+\preprint{{INFO I606:} Spring 2026}
 
+\title{Topological Link Prediction for Metabolic Gap-Filling in a Genome-Scale Metabolic Network}
 \author{Dylan Smith}
-\affiliation{Indiana University Bloomington}
+\affiliation{
+    Univesity of Indiana,
+    Bloomington, Indiana 47408 , USA
+    }
 \date{\today}
 
 \begin{abstract}
-Genome-scale metabolic models are powerful tools for metabolic engineering, but they remain
-incomplete because many enzymatic functions are missing or poorly annotated. This project evaluates
-whether graph topology can recover hidden metabolic relationships in the \textit{Escherichia coli}
-K-12 iJO1366 model. We represent the model as a bipartite metabolite-reaction graph, hide known
-metabolite-reaction edges, and compare Node2Vec link prediction against simpler topology-based
-baselines. The results are used to assess whether network structure provides useful gap-filling
-signal independent of sequence homology.
-\end{abstract}
+    Genome-Scale Metabolic Networks are widely used to study microbial metabolism and to guide metabolic engineering, but even the most highly curated models remain incomplete. This project evaluates whether network topology can recover missing metabolic structure in the \textit{Escherichia coli} K-12 iJO1366 model, widely recognized as one of the most complete GEM. The model was represented as a bipartite graph containing metabolite nodes, reaction nodes, and edges indicating metabolite participation in reactions. A missing-edge benchmark was created by hiding known metabolite-reaction edges and evaluating whether topology-based methods coult recover them. Node2Vec embeddings with logistic regression was compared against classical network baselines including preferential attachment, common neighbors, Jaccard similarity, Adamic-Adar, and a reaction-context score. Currency metabolites and biomass pseudo reactions were removed to reduce hub-driven artifacts. Node2Vec achieved the highest recovery of degree-matched negatives, reaching an AUPRC of 0.8177 compared with 0.6882 for the best baseline. However, local topology baselines were highly competative amonst the top-ranked predictions. These results suggest that metabolic network topology contains useful gap-filling signal. 
+    \end{abstract}
+
 
 \maketitle
 
-\section{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Genome-scale metabolic models encode the reactions, metabolites, and gene associations known for an
-organism. Even curated models such as iJO1366 remain incomplete, which limits simulation accuracy
-and creates uncertainty in downstream metabolic engineering work. This project asks whether network
-topology can provide an independent signal for identifying missing metabolic structure.
+\section{I. Introduction}
+    Genome-scale metabolic models, or GEMs, represent the known biochemical reactions, metabolites, and gene-reaction associations of an organism. These models are central tools in systems biology and metabolic engineering because they allow researchers to simulate metabolic behavior, predict growth phenotypes, and evaluate possible engineering strategies. However, even well-studied organisms such as \textit{Escherichia coli} still contain uncertain or incomplete metabolic annotations. Missing reactions, orphan reactions, and unknown gene-protein-reaction associations can limit the accuracy of downstream analysis. Gap-filling methods have long been used as computational tools to address these limitations.
+    
+    Traditional gap-filling methods often relied on sequence homology, biochemical databases, or flux feasiblity constraints. These approaches are valuable, but they can miss reactions whose enzymes are poorly annotated or highly divergent from known sequences. Network topology provides a complementary signal where topological features of the network can be used to predict plausible missing edges before sequence evidence is considered. 
+    
+    This project asks whether local and global graph topology can recover artifically hidden metabolic structure in the iJO1366 reconstruction of E. coli K-12. The main task is a controlled hidden-edge benchmark. Known metabolite-reaction edges are removed from the graph, and several topology-based methods are evaluated on their ability to recover them over recovery of degree-matched negatives. This setup does not discover novel reactions, but it provides a measurable way to test whether metabolic network topology contains useful gap-filling signal.    
+    
 
-\section{Data}
+\section{II. Data and Network Construction}
 
-The primary data source is the iJO1366 reconstruction of \textit{E. coli} K-12 MG1655 from BiGG
-Models. The model contains reactions, metabolites, stoichiometric coefficients, reversibility, and
-gene-protein-reaction rules. Optional validation data include RefSeq NC\_000913.3 and enzyme
-annotations from KEGG or BioCyc/EcoCyc.
+    
+    The primary data source was the iJO1366 genome-scale metabolic reconstruction of \textit{E. coli} K-12, downloaded from BiGG Models and loaded using COBRApy. The model contains 2,583 reactions, 1,805 metabolites, and 1,367 genes.
+    
+    The metabolic model was converted into a bipartite graph using NetworkX. One node set represented metabolites, and the other represented reactions. An edge was added between a metabolite and a reaction if the metabolite participated in that reaction. This representation preserves the realtioship between metabolites and reactions without projecting the graph into a metabolite-only or reaction-only network.Exchange, demand, sink, and other boundary reactions were excluded from the primary graph because they represent environmental exchange rather than ordinary internal biochemical transformations. After this filtering, the base graph contained 4,058 nodes and 9,853 edges, including 1,805 metabolite nodes and 2,253 reaction nodes. The base graph formed one connected component.
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\textwidth]{rank_degree_plot.png}
+        \caption{FIG. 1. Degree structure of the bipartite iJO1366 metabolite-reaction graph. The metabolite degree distribution is highly skewed, with a small number of currency metabolites acting as high-degree hubs. This motivated explicit filtering of currency metabolites before link prediction.
+}
+        \label{fig:my_label}
+    \end{figure}
+
+    Initial network exploration showed that the graph was strongly dominated by high-degree currency metabolites. The median metabolite degree was only 2, but the maximum metabolite degree was 1,031 for cytosolic protons. Other high-degree metabolites included water, ATP, phosphate, ADP, NAD, and NADH. These metabolites act as global connectors and can inflate link prediction preformance by making the predictions too dependent on hub structure. To address this, three graph variants were created. The first was the unfiltered internal graph, called base. The second, no\_currency, removed the previously mentioned common currency metabolites. The third, no\_currency\_no\_biomass, additionally removed biomass pseudo-reactions. Three high-degree metabolites were protected from removal despite thier high degree: pyruvate, acetyl-CoA, and acyl carrier protein. These metabolites are central carbon-backbone or carrier molecules and provide biologically important carbon atoms to many reactions. 
+
+    The final filtered graph, no\_currency\_no\_biomass, contained 4,003 nodes and 5,663 edges. Removing currency metabolites fragmented the graph into multiple connected components, but most nodes reamined in the largest connected component. 
+
+
+\section{III. Benchmarks}
+
+    The prediction task was designed as a controlled missing-edge benchmark. Rather than predicting entirely new reeactions, the project asks whether known metabolite-reaction edges can be recovered after being hidden from the training graph. For each graph variant, 10\% of known metabolite-reaction edges were removed. These hidden edges became positive test samples. Negative samples were generated by sampling metabolite-reaction pairs that do not exist in the known model. Each method then assigned a score to candidate edges, where higher scores indicated that the edge was more likely to be real. These candidate edges were ranked by score and evaluated against the hidden true edges. 
+
+    Two types of negative samples were used. Random negatives were sampled from nonexistent metabolite-reaction pairs. These are useful for a basic benchmark, but many random non-edges are easy to distinguish from real edges. To create  a harder benchmark, degree-matched negatives were also generated. For each hidden positive edge, the sampler attempted to create a nonexistent edge involving a metabolite or reaction with similar degree. These degree-matched negatives test whether methods learn meaningful topology beyond simple node popularity.
+
+    Area under the precision-recall curve (AUPRC) was used as the main metric of comparison. This is appropriate for link prediction because the task is ranking-based and naturally sparse. Precision for the top 10, 50, and 100 ranked predictions were used to evaluate the quality of the most confident predictions. 
+    
 
 \section{Methods}
 
-We convert iJO1366 into a bipartite graph with metabolite nodes and reaction nodes. An edge connects
-a metabolite to a reaction when the metabolite participates in that reaction. The main benchmark
-hides a fraction of known metabolite-reaction edges while keeping all evaluated nodes present in the
-training graph.
+    Several topology-based baselines were evaluated. A random baseline assigned random scores to candidate edges. Preferential attachment scored a candidate metabolite-0reaction edge as the product of the metabolite degree and reaction degree. Common neighbors, Jaccard similariy, adn Adamic-adar were adapted to the bipartite setting by comparing whether a candidate metabolite tends to appear in reaction neighborhoods similar to the metabolites already present in the candidate reactions. A custom reaction-context score was also included to measure wheterh a metabolite co-occurred with metabolites already connected to a reaction. 
 
-Baseline scores are computed using simple NetworkX-derived topology features. Node2Vec embeddings
-are trained on the training graph, and candidate metabolite-reaction pairs are scored using a
-supervised classifier trained on positive and negative examples.
+    Node2Vec was used as the graph embedding method. Node2Vec learns vector representations of nodes by simulating random walks over the graph. In the main experiment, embeddings had 64 dimensions, walk length was 20, the number of walks per node was 10, walk based parameters were set to 1. Candidate edge embeddings were constructed using the Hadamard product of the metabolite and reaction node embeddings. A logistic regression classifier was the trained to distinguish real training edges from sampled non-edges. 
+    
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\textwidth]{node2vec_sensitivity_heatmap.png}
+        \caption{FIG. 2. Sensitivity analysis on Node2Vec parameters shows 64d, q = 1.0 as the best configuration.
+}
+        \label{fig:my_label}
+    \end{figure}
+    
+    A small sensitivity analysis was performed by varying the embedding dimension over 32, 64 and 128 and varying q over 0.5, 1.0 and 2.0.
+
 
 \section{Results}
 
-This section will report graph summary statistics, degree distributions, precision-recall curves,
-AUPRC, precision at selected ranks, and top-ranked candidate predictions.
+    The negative sampling stratagy had a strong affect on performance. On the unfiltered base graph with random negatives, Jaccard achieved an AUPRC of 0.8629. However, when degree-matched negatives were used, Jaccard performance on the base graph dropped to 0.6171. This indicates that random negatives made the hub-heavy base graph look easier than it really was. The filtered graphs were more stable. On the no\_currency\_no\_biomass graph, Jaccard achieved an AUPRC of 0.6968 with random negatives and 0.6882 with degree-matched negatives. This suggests that filtering currency metabolites reduced hub-driven artifacts and created a more meaningful benchmark.
+
+    Node2Vec improved full-list recover on the filtered graphs. On the main benchmark, no\_currency\_no\_biomass with degree-matched negatives, Node2vec achieved an AUPRC of 0.8177. The best classical topology baseline on the same benchmark was Jaccard with an AUPRC of 0.6882. This indicates that Node2Vec learned useful graph structure beyond the local overlap captured by the baseline methods. 
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\textwidth]{final_filtered_model_comparison.png}
+        \caption{FIG. 3. Link-prediction performance on filtered graph variants using degree-matched negative examples. Node2Vec achieved the highest AUPRC on both filtered graphs, indicating improved full-list recovery compared with local topology baselines.}
+        \label{fig:my_label}
+    \end{figure}
+
+    However, the top-ranked prediction results were more nuanced. Common neighbors, Jaccard, Adamic-Adar, reaction context, and Node2Vec all performed very well among the highest-ranked predictions. The common neighbors method recovered 10 of the top 10, 50 of the top 50, and 97 of the top 100 predictions as true hidden edges. Node2Vec recovered 10 of the top 10, 49 of the top 59, and 95 of the top 100. Thus local topology baselines were extremely competative at the higest ranks, even though Node2Vec achieved stronger full-list AUPRC. 
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\textwidth]{topn_prediction_composition.png}
+        \caption{FIG. 4. Composition of the top-ranked predictions for the main benchmark (`no_currency_no_biomass`, degree-matched negatives). Blue segments indicate true hidden edges and red segments indicate false positives. Local topology baselines and Node2Vec all performed strongly at the highest ranks, showing that local reaction context explains many easy missing-edge recoveries.}
+        \label{fig:my_label}
+    \end{figure}
+
 
 \section{Discussion}
 
-The discussion will interpret whether topology-based link prediction performs better than random and
-degree-based baselines, where it succeeds, where it fails, and what the results imply for metabolic
-gap-filling.
+    The results support the idea that metabolic network topology contains useful signal for gap-filling. Even simple local topology baselines recovered many of the hidden metabolite-reaction edges above random expectation. This is especially clear in the top-ranked predictions, where common neighbor style methods performed extremely well. At the same time, the benchmark also showed that curation is necessary. The unfiltered graph was heavily influenced by currency metabolites, and random negatives overstaded performance on that graph. Degree-matched negatives provided a more realistic test because they forced methods to distinguish true edges from plausible looking non-edges involving similarly connected nodes. 
+
+    Node2Vec provided the strongest full-list ranking performance on the filtered graphs. This suggests that graph embeddings capture broader structural information beyond local overlap alone. However, Node2Vec did not dominate every metric. Locality baselines were highly competitive at the top-rank predictions. A possible conclusion is that local context explains many easy missing edges, but Node2Vecs extends context to improve the overall ranking across the full candidate set. These findings suggest that topology based gap-filling could be useful as a complement to sequence-based methods. A topology-first approach could prioritize candidate missing edges or reactions fro later validation using gene annotations, enzyme databases, or experimental evidence. 
+
 
 \section{Limitations}
 
-Important limitations include the use of simulated missingness, possible bias from high-degree
-currency metabolites, and the difference between predicting graph structure and proving biochemical
-activity.
+    This project used simulated missingness rather than true unknown biological gaps. This hidden-edge recovery is not the same as discovering entirely novel reactions, which likely require genomic or metabolomic information. Becuase only individual edges were hidden, much of the surrounding reaction context remained visible which would not be the case for predicting entirely novel reactions or metabolites.
+
+    The graph representation also simplifies metabolism. stoichiometric coefficients, reaction directionality, thermodynaimc feasibility, and compartment-specific constraints were not used in the prediction models. Filtering the currency metabolites improved the benchmark but also fragmented the graph into multiple connected components which can affect random walk based methods like Node2Vec. Finally, genomic validation was not performed as a full BLAST pipeline in this stage as we relied on the robustness of the iJO1366 GEM. 
+
+
+\section{Conclusion}
+
+    This project evaluated whether topology-based link prediction can recover hidden metabolic structure in the iJO1366 model of \textit{E. coli} K-12. After constructing a bipartite metabolite-reaction graph, filtering currency metabolites, and evaluating both random and degree-matched negative examples, Node2Vec achieved the strongest full-list recover on the main filtered benchmark. At the same time, local common-neighbor-style baselines were highly competative amongst the top ranked predictions. These results show that metabolic network topology contains useful gap-filling signal. 
+
 
 \section{Code Availability}
 
-Code and reproducible scripts are available at: \url{https://github.com/dylan33smith/TODO}
+    Code and reproducible scripts are available at:
 
-\bibliography{references}
+    \url{https://github.com/dylan33smith/Topological-metabolic-gap-filling}
+
+
 
 \end{document}
